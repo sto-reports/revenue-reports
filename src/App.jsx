@@ -567,6 +567,13 @@ try {
   async function addReport(event) {
     event.preventDefault();
 
+      if (
+    profile?.role !== "admin" &&
+    profile?.can_create_reports === false
+  ) {
+    setMessage("شما اجازه ایجاد گزارش جدید را ندارید.");
+    return;
+  }
     if (!reportForm.source_id) {
       setMessage("لطفاً منبع عواید را انتخاب کنید.");
       return;
