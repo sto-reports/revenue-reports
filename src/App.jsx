@@ -221,7 +221,8 @@ await loadNotifications();
   async function loadUsers() {
     const result = await supabase
       .from("profiles")
-      .select("id, username, full_name, role, created_at")
+      .select("id, username, full_name, role, created_at, can_view_all_reports, can_create_reports, can_edit_reports, can_delete_reports, can_view_analytics")
+
       .order("created_at", { ascending: true });
 
     if (result.error) {
@@ -232,6 +233,35 @@ await loadNotifications();
 
     setUsers(result.data || []);
   }
+  async function saveUserPermissions(userId, permissions) {
+if (profile?.role !== "admin") {
+setMessage("فقط مدیر سیستم می‌تواند دسترسی کاربران را تغییر دهد.");
+return;
+}
+
+setMessage("");
+
+const result = await supabase
+.from("profiles")
+.update({
+can_view_all_reports: permissions.can_view_all_reports,
+can_create_reports: permissions.can_create_reports,
+can_edit_reports: permissions.can_edit_reports,
+can_delete_reports: permissions.can_delete_reports,
+can_view_analytics: permissions.can_view_analytics,
+})
+.eq("id", userId);
+
+if (result.error) {
+console.error(result.error);
+setMessage("ذخیره دسترسی‌ها ناموفق بود.");
+return;
+}
+
+setMessage("دسترسی‌های کاربر ذخیره شد.");
+await loadUsers();
+}
+
 async function loadTargets() {
 setTargetLoading(true);
 
@@ -3373,8 +3403,12 @@ width: "100%",
               }}
             >
               <table
-                style={styles.table}
-              >
+  style={{
+    ...styles.table,
+    minWidth: "1100px",
+    width: "max-content",
+  }}
+>
                 <thead>
                   <tr
                     style={
@@ -4998,16 +5032,14 @@ style={styles.input}
                   </div>
                 ) : (
                   <div
-                    style={{
-                      overflowX:
-                        "auto",
-                    }}
-                  >
-                    <table
-                      style={
-                        styles.table
-                      }
-                    >
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    overflowX: "scroll",
+    WebkitOverflowScrolling: "touch",
+  }}
+>
+                    <table style={{ ...styles.table, minWidth: "1200px", width: "1200px", }} >
                       <thead>
                         <tr
                           style={
@@ -5069,6 +5101,9 @@ style={styles.input}
                           >
                             تاریخ ایجاد
                           </th>
+                          <th style={styles.tableCell}>
+                         مدیریت دسترسی‌ها
+                       </th>
                         </tr>
                       </thead>
 
@@ -5227,6 +5262,34 @@ style={styles.input}
     })()
   : "-"}
                                 </td>
+                                <td style={styles.tableCell}>
+  {user.role !== "admin" && (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "180px" }}>
+      {[
+        ["can_view_all_reports", "مشاهده همه گزارش‌ها"],
+        ["can_create_reports", "ایجاد گزارش"],
+        ["can_edit_reports", "ویرایش گزارش"],
+        ["can_delete_reports", "حذف گزارش"],
+        ["can_view_analytics", "مشاهده آمار"],
+      ].map(([key, label]) => (
+        <label key={key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <input
+            type="checkbox"
+            checked={Boolean(user[key])}
+            onChange={(event) =>
+              saveUserPermissions(user.id, {
+                ...user,
+                [key]: event.target.checked,
+              })
+            }
+          />
+          <span>{label}</span>
+        </label>
+      ))}
+    </div>
+  )}
+</td>
+
                               </tr>
                             );
                           }
