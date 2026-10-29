@@ -114,6 +114,8 @@ const [yearFilterJalali, setYearFilterJalali] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
 
+const [editingReportId, setEditingReportId] = useState(null);
+
   const [reportForm, setReportForm] = useState({
     source_id: "",
     report_date: new Date().toISOString().slice(0, 10),
@@ -161,7 +163,8 @@ const [notificationLoading, setNotificationLoading] = useState(false);
 
     const profileResult = await supabase
       .from("profiles")
-      .select("id, username, full_name, role")
+      .select("id, username, full_name, role, is_active, can_view_all_reports, can_create_reports, can_edit_reports, can_delete_reports, can_view_analytics")
+
       .eq("id", currentSession.user.id)
       .single();
 
@@ -564,77 +567,185 @@ try {
     });
   }
 
-  async function addReport(event) {
-    event.preventDefault();
+  function startEditReport(report) {
+if (
+profile?.role !== "admin" &&
+(
+profile?.can_edit_reports !== true ||
+profile?.is_active !== true ||
+report.user_id !== session?.user?.id
+)
+) {
+setMessage("شما اجازه ویرایش این گزارش را ندارید.");
+return;
+}
 
-      if (
-    profile?.role !== "admin" &&
-    profile?.can_create_reports === false
-  ) {
-    setMessage("شما اجازه ایجاد گزارش جدید را ندارید.");
+setEditingReportId(report.id);
+
+setReportForm({
+source_id: String(report.source_id ?? ""),
+report_date: report.report_date ?? "",
+quantity: String(report.quantity ?? ""),
+cleared_quantity: String(report.cleared_quantity ?? ""),
+revenue_afn: String(report.revenue_afn ?? ""),
+notes: report.notes ?? "",
+});
+
+setMessage("گزارش برای ویرایش آماده است.");
+window.scrollTo({ top: 0, behavior: "smooth" });
+
+ async function addReport(event) {
+  event.preventDefault();
+
+  const isEditing = editingReportId !== null;
+  const isAdmin = profile?.role === "admin";
+
+  if (isEditing) {
+    const reportBeingEdited = reports.find(
+      (report) => report.id === editingReportId
+    );
+
+    if (!reportBeingEdited) {
+      setMessage("گزارش موردنظر پیدا نشد.");
+      return;
+    }
+
+    if (
+      !isAdmin &&
+      (
+        profile?.can_edit_reports !== true ||
+        profile?.is_active !== true ||
+        reportBeingEdited.user_id !== session?.user?.id
+      )
+    ) {
+      setMessage("شما اجازه ویرایش این گزارش را ندارید.");
+      return;
+    }
+  } else {
+    if (
+      !isAdmin &&
+      (
+        profile?.can_create_reports !== true ||
+        profile?.is_active !== true
+      )
+    ) {
+      setMessage("شما اجازه ایجاد گزارش جدید را ندارید.");
+      return;
+    }
+  }
+
+  if (!reportForm.source_id) {
+    setMessage("لطفاً منبع عواید را انتخاب کنید.");
     return;
   }
-    if (!reportForm.source_id) {
-      setMessage("لطفاً منبع عواید را انتخاب کنید.");
-      return;
-    }
 
-    if (!reportForm.report_date) {
-      setMessage("لطفاً تاریخ را انتخاب کنید.");
-      return;
-    }
-
-    const quantity = Number(reportForm.quantity || 0);
-    const cleared = Number(reportForm.cleared_quantity || 0);
-    const revenue = Number(reportForm.revenue_afn || 0);
-
-    if (quantity < 0 || cleared < 0 || revenue < 0) {
-      setMessage("مقادیر نمی‌توانند منفی باشند.");
-      return;
-    }
-
-    if (cleared > quantity) {
-      setMessage("مقدار تصفیه‌شده نمی‌تواند بیشتر از مقدار کل باشد.");
-      return;
-    }
-
-    setMessage("در حال ذخیره گزارش...");
-
-    const result = await supabase.from("revenue_reports").insert({
-      user_id: session.user.id,
-      source_id: Number(reportForm.source_id),
-      report_date: reportForm.report_date,
-      quantity: quantity,
-      cleared_quantity: cleared,
-      revenue_afn: revenue,
-      notes: reportForm.notes.trim() || null,
-    });
-
-    if (result.error) {
-      console.error(result.error);
-      setMessage("ذخیره گزارش ناموفق بود: " + result.error.message);
-      return;
-    }
-
-    setMessage("گزارش با موفقیت ثبت شد.");
-
-setTimeout(() => {
-  setMessage((current) =>
-    current === "گزارش با موفقیت ثبت شد." ? "" : current
-  );
-}, 300);
-
-    setReportForm({
-      source_id: "",
-      report_date: new Date().toISOString().slice(0, 10),
-      quantity: "",
-      cleared_quantity: "",
-      revenue_afn: "",
-      notes: "",
-    });
-
-    await loadReports();
+  if (!reportForm.report_date) {
+    setMessage("لطفاً تاریخ را انتخاب کنید.");
+    return;
   }
+
+  const quantity = Number(reportForm.quantity || 0);
+  const cleared = Number(reportForm.cleared_quantity || 0);
+  const revenue = Number(reportForm.revenue_afn || 0);
+
+  if (
+    !Number.isFinite(quantity) ||
+    !Number.isFinite(cleared) ||
+    !Number.isFinite(revenue) ||
+    quantity < 0 ||
+    cleared < 0 ||
+    revenue < 0
+  ) {
+    setMessage("مقادیر باید عدد معتبر و غیرمنفی باشند.");
+    return;
+  }
+
+  if (cleared > quantity) {
+    setMessage(
+      "مقدار تصفیه‌شده نمی‌تواند بیشتر از مقدار کل باشد."
+    );
+    return;
+  }
+
+  setMessage(
+    isEditing
+      ? "در حال ذخیره تغییرات..."
+      : "در حال ذخیره گزارش..."
+  );
+
+  const reportData = {
+    source_id: Number(reportForm.source_id),
+    report_date: reportForm.report_date,
+    quantity,
+    cleared_quantity: cleared,
+    revenue_afn: revenue,
+    notes: reportForm.notes.trim() || null,
+  };
+
+  let result;
+
+  if (isEditing) {
+    let query = supabase
+      .from("revenue_reports")
+      .update(reportData)
+      .eq("id", editingReportId);
+
+    if (!isAdmin) {
+      query = query.eq("user_id", session.user.id);
+    }
+
+    result = await query.select("id");
+  } else {
+    result = await supabase
+      .from("revenue_reports")
+      .insert({
+        ...reportData,
+        user_id: session.user.id,
+      })
+      .select("id");
+  }
+
+  if (result.error) {
+    console.error(result.error);
+    setMessage(
+      (isEditing
+        ? "ویرایش گزارش ناموفق بود: "
+        : "ذخیره گزارش ناموفق بود: ") + result.error.message
+    );
+    return;
+  }
+
+  if (isEditing && (!result.data || result.data.length === 0)) {
+    setMessage(
+      "گزارش تغییر نکرد. ممکن است اجازه ویرایش نداشته باشید."
+    );
+    return;
+  }
+
+  const successMessage = isEditing
+    ? "گزارش با موفقیت ویرایش شد."
+    : "گزارش با موفقیت ثبت شد.";
+
+  setMessage(successMessage);
+  setEditingReportId(null);
+
+  setReportForm({
+    source_id: "",
+    report_date: new Date().toISOString().slice(0, 10),
+    quantity: "",
+    cleared_quantity: "",
+    revenue_afn: "",
+    notes: "",
+  });
+
+  await loadReports();
+
+  setTimeout(() => {
+    setMessage((current) =>
+      current === successMessage ? "" : current
+    );
+  }, 3000);
+}}
 
   async function addSource() {
     const name = newSource.trim();
@@ -4554,6 +4665,13 @@ style={styles.input}
                       عواید
                     </th>
 
+<th style={styles.tableCell}>
+  یادداشت
+</th>
+
+<th style={styles.tableCell}>
+  عملیات
+</th>
                     <th
                       style={
                         styles.tableCell
@@ -4561,6 +4679,9 @@ style={styles.input}
                     >
                       توضیحات
                     </th>
+                    <th style={styles.tableCell}>
+  عملیات
+</th>
                   </tr>
                 </thead>
 
@@ -4658,6 +4779,24 @@ style={styles.input}
                                     {report.notes ||
                                       "-"}
                                   </td>
+                                  <td style={styles.tableCell}>
+{true && (
+    <button
+      type="button"
+      onClick={() => startEditReport(report)}
+      style={{
+        padding: "6px 12px",
+        backgroundColor: "#2563eb",
+        color: "white",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+      }}
+    >
+      ویرایش
+    </button>
+  )}
+</td>
                                 </tr>
                                                             );
                             })}
