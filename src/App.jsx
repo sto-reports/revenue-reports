@@ -581,6 +581,7 @@ return;
 }
 
 setEditingReportId(report.id);
+setActiveTab("report");
 
 setReportForm({
 source_id: String(report.source_id ?? ""),
