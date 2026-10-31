@@ -593,6 +593,7 @@ notes: report.notes ?? "",
 
 setMessage("گزارش برای ویرایش آماده است.");
 window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
  async function addReport(event) {
   event.preventDefault();
@@ -745,7 +746,7 @@ window.scrollTo({ top: 0, behavior: "smooth" });
       current === successMessage ? "" : current
     );
   }, 3000);
-}}
+}
 
   async function addSource() {
     const name = newSource.trim();
