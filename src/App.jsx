@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Tariffs from "./Tariffs";
 
 import {
   ResponsiveContainer,
@@ -2045,31 +2046,35 @@ tableCell: {
 minWidth: "200px",
  background: "#ffffff", border: "1px solid #dbe3ef", borderRadius: "14px", padding: "18px 12px", display: "flex", flexDirection: "column", gap: "8px", boxShadow: "0 4px 15px rgba(30, 64, 175, 0.06)", }} > <h3 style={{ color: "#9D174D", margin: "0 8px 14px", paddingBottom: "14px", borderBottom: "2px solid #dbeafe", fontSize: "18px", }} > ☰ منوی اصلی </h3>
 
-{[
-{ id: "report", label: "ثبت گزارش", icon: "📝" },
+{[{ id: "report", label: "ثبت گزارش", icon: "📝" },
+
 { id: "dashboard", label: "داشبورد عواید", icon: "🏠" },
+
 { id: "charts", label: "نمودارهای عواید", icon: "📊" },
+
 { id: "sources", label: "مدیریت منابع عواید", icon: "💰" },
-{ id: "compare", label: "مقایسه عواید", icon: "📈" },
+
 {
-id: "comparePeriods",
-label: "مقایسه منابع در چهار دوره",
-icon: "📉",
+  id: "summary",
+  label: "گزارش‌گیری و خلاصه عواید",
+  icon: "📋",
 },
+
 {
-id: "summary",
-label: "گزارش‌گیری و خلاصه عواید",
-icon: "📋",
+  id: "allReports",
+  label: "همه گزارش‌های ثبت‌شده",
+  icon: "📁",
 },
+
 {
-id: "allReports",
-label: "همه گزارش‌های ثبت‌شده",
-icon: "📁",
+  id: "tariffs",
+  label: "مدیریت تعرفه‌ها",
+  icon: "🧾",
 },
-{ id: "results", label: "نتایج گزارش", icon: "📑" },
+
 { id: "users", label: "مدیریت کاربران", icon: "👥" },
-{ id: "targets", label: "مدیریت اهداف عواید", icon: "🎯" },
-].map((item) => (
+
+{ id: "targets", label: "مدیریت اهداف عواید", icon: "🎯" },].map((item) => (
 <button
 key={item.id}
 onClick={() => setActiveTab(item.id)}
@@ -2773,6 +2778,10 @@ borderRight: "2px solid #9D174D",
       </form>
     </section>
     )}
+
+    {activeTab === "tariffs" && (
+  <Tariffs />
+)}
 {activeTab === "charts" && (
     <section
   style={{
@@ -3816,7 +3825,7 @@ width: "100%",
       {activeTab === "summary" && (
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
-            گزارش‌گیری و خلاصه عواید
+            گزارش‌گیری و خلاصه 
           </h2>
 
           <p
